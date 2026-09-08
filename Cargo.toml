@@ -1,0 +1,22 @@
+[package]
+name = "tmux-grab"
+version = "0.1.0"
+edition = "2024"
+description = "Vimium-style hints for tmux: press a key, grab a path, URL, hash or number off the screen"
+license = "MIT"
+repository = "https://github.com/bellicose100xp/tmux-grab"
+readme = "README.md"
+keywords = ["tmux", "clipboard", "hints"]
+categories = ["command-line-utilities"]
+
+[dependencies]
+anyhow = "1"
+clap = { version = "4.5", features = ["derive"] }
+regex = "1"
+unicode-width = "0.2"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
