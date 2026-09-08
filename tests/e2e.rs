@@ -159,31 +159,43 @@ impl Server {
         self.wait_client_ready();
     }
 
-    /// A freshly attached client is not necessarily reading keys yet. Probe it
-    /// with prefix + t (clock mode), which is safe to repeat, and wait until
-    /// the pane reacts. Then leave clock mode again.
+    /// A freshly attached client is not necessarily reading keys yet, and until
+    /// it is, keystrokes are either dropped or land in the pane as text. Bind a
+    /// throwaway key in the root table and press it until it fires, so every
+    /// test starts from a client that is known to be live.
     fn wait_client_ready(&mut self) {
+        self.tmux(&[
+            "bind-key",
+            "-T",
+            "root",
+            "C-y",
+            "set-option",
+            "-g",
+            "@grab-probe",
+            "ok",
+        ]);
         let start = Instant::now();
         loop {
-            self.type_keys("\x02t");
-            let deadline = Instant::now() + Duration::from_millis(400);
+            self.type_keys("\x19");
+            let deadline = Instant::now() + Duration::from_millis(300);
             while Instant::now() < deadline {
-                if self.pane_in_mode() {
-                    self.type_keys("q");
-                    self.wait_for(|s| !s.pane_in_mode(), "leave clock mode");
+                if self.tmux(&["show-options", "-gqv", "@grab-probe"]) == "ok" {
+                    self.tmux(&["unbind-key", "-T", "root", "C-y"]);
+                    self.tmux(&["set-option", "-gu", "@grab-probe"]);
+                    // The probe key typed text into the pane on the attempts
+                    // that were too early; give the shell a clean line.
+                    self.tmux(&["send-keys", "-t", "t:0.0", "C-u"]);
                     return;
                 }
                 std::thread::sleep(Duration::from_millis(25));
             }
             assert!(
                 start.elapsed() < PATIENCE,
-                "client never started reading keys"
+                "client never started reading keys\nscreen:\n{}\nclients:\n{}",
+                self.screen(),
+                self.tmux(&["list-clients"])
             );
         }
-    }
-
-    fn pane_in_mode(&self) -> bool {
-        self.tmux(&["display-message", "-p", "-t", "t:0.0", "#{pane_in_mode}"]) == "1"
     }
 
     fn type_keys(&mut self, keys: &str) {
@@ -233,12 +245,33 @@ impl Server {
     /// Press the grab key and wait until the overlay is up. The binary switches
     /// the key table last, so that is the signal that hints are on screen and
     /// further keys will reach grab mode.
+    ///
+    /// The keypress is repeated while nothing at all has happened. That is safe
+    /// only in that state: once the overlay window exists, another `f` would be
+    /// read as a hint, so from then on we only wait.
     fn enter_grab_mode(&mut self) {
-        self.type_keys("\x02f");
-        self.wait_for(
-            |s| s.key_table() == "grab" && s.windows().len() == 2,
-            "grab mode",
-        );
+        let start = Instant::now();
+        loop {
+            self.type_keys("\x02f");
+            let deadline = Instant::now() + Duration::from_secs(2);
+            while Instant::now() < deadline {
+                if self.key_table() == "grab" && self.windows().len() == 2 {
+                    return;
+                }
+                if self.windows().len() == 2 {
+                    // Overlay is coming up. Stop pressing keys and wait it out.
+                    self.wait_for(|s| s.key_table() == "grab", "grab key table");
+                    return;
+                }
+                std::thread::sleep(Duration::from_millis(25));
+            }
+            assert!(
+                start.elapsed() < PATIENCE,
+                "grab mode never started\nscreen:\n{}\nlog:\n{}",
+                self.screen(),
+                std::fs::read_to_string(dirs_cache().join("tmux-grab.log")).unwrap_or_default()
+            );
+        }
     }
 
     fn wait_restored(&self) {
@@ -264,6 +297,15 @@ impl Drop for Server {
             .args(["-L", &self.name, "kill-server"])
             .output();
     }
+}
+
+/// Same cache directory the binary logs into.
+fn dirs_cache() -> std::path::PathBuf {
+    std::env::var_os("XDG_CACHE_HOME")
+        .map(std::path::PathBuf::from)
+        .or_else(|| std::env::var_os("HOME").map(|h| std::path::PathBuf::from(h).join(".cache")))
+        .unwrap_or_else(std::env::temp_dir)
+        .join("tmux-grab")
 }
 
 fn have(bin: &str) -> bool {
