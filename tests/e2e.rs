@@ -215,6 +215,14 @@ impl Server {
         self.tmux(&["capture-pane", "-p", "-t", "t:0.0"])
     }
 
+    /// True once the shell has run a `clear; ...` line and its output is on
+    /// screen. Matching on the output text alone is not enough: the shell
+    /// echoes the command line first, and that echo contains the same text.
+    fn shows_output(&self, text: &str) -> bool {
+        let screen = self.screen();
+        screen.contains(text) && !screen.contains("clear;")
+    }
+
     fn windows(&self) -> Vec<String> {
         self.tmux(&["list-windows", "-t", "t", "-F", "#{window_name}"])
             .lines()
@@ -361,10 +369,7 @@ fn hint_copies_to_buffer_and_restores_state() {
     s.shell(
         "clear; echo see /usr/local/bin/tmux and https://example.com/x; echo second /tmp/foo.txt",
     );
-    s.wait_for(
-        |s| s.screen().contains("second /tmp/foo.txt"),
-        "shell output",
-    );
+    s.wait_for(|s| s.shows_output("second /tmp/foo.txt"), "shell output");
 
     s.enter_grab_mode();
     // The bottom line gets the best hint, then left to right going up.
@@ -391,10 +396,7 @@ fn shift_hint_pastes_into_pane() {
         return;
     };
     s.shell("clear; echo pasteme /tmp/p.txt");
-    s.wait_for(
-        |s| s.screen().contains("pasteme /tmp/p.txt"),
-        "shell output",
-    );
+    s.wait_for(|s| s.shows_output("pasteme /tmp/p.txt"), "shell output");
     s.enter_grab_mode();
     s.wait_for(|s| s.screen().contains("pasteme atmp/p.txt"), "hint");
     s.type_keys("A");
@@ -411,7 +413,7 @@ fn multi_select_joins_with_spaces() {
         return;
     };
     s.shell("clear; echo one /tmp/one.txt; echo two /tmp/two.txt");
-    s.wait_for(|s| s.screen().contains("two /tmp/two.txt"), "shell output");
+    s.wait_for(|s| s.shows_output("two /tmp/two.txt"), "shell output");
     s.enter_grab_mode();
     s.wait_for(|s| s.screen().contains("two atmp/two.txt"), "hints");
 
@@ -449,7 +451,7 @@ fn q_exits_and_prefix_is_inert_while_active() {
         return;
     };
     s.shell("clear; echo a /tmp/x");
-    s.wait_for(|s| s.screen().contains("a /tmp/x"), "shell output");
+    s.wait_for(|s| s.shows_output("a /tmp/x"), "shell output");
     s.enter_grab_mode();
     s.type_keys("\x02");
     std::thread::sleep(Duration::from_millis(300));
@@ -474,7 +476,7 @@ fn split_and_zoomed_panes() {
     ]);
     s.tmux(&["select-pane", "-t", "t:0.0"]);
     s.shell("clear; echo left /etc/hosts");
-    s.wait_for(|s| s.screen().contains("left /etc/hosts"), "shell output");
+    s.wait_for(|s| s.shows_output("left /etc/hosts"), "shell output");
 
     s.enter_grab_mode();
     s.wait_for(
@@ -522,7 +524,7 @@ fn wrapped_line_keeps_columns() {
     };
     let long = "/aaaaaaaaaa/bbbbbbbbbb/cccccccccc/dddddddddd/eeeeeeeeee/ffffffffff/gggggggggg/hhhhhhhhhh/iiiiiiiiii/jjjj";
     s.shell(&format!("clear; echo {long} end /tmp/z"));
-    s.wait_for(|s| s.screen().contains("end /tmp/z"), "shell output");
+    s.wait_for(|s| s.shows_output("end /tmp/z"), "shell output");
     s.enter_grab_mode();
     s.wait_for(
         |s| s.screen().contains("jjjj end stmp/z"),
@@ -565,7 +567,7 @@ fn tab_indented_line_keeps_columns() {
     };
     s.shell("clear; printf '\\tmodified:   src/main.rs\\n'");
     s.wait_for(
-        |s| s.screen().contains("modified:   src/main.rs"),
+        |s| s.shows_output("modified:   src/main.rs"),
         "shell output",
     );
     s.enter_grab_mode();
