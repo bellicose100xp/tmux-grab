@@ -44,6 +44,7 @@ pub fn run() -> Result<()> {
 
     if cfg.enable_bindings {
         cmds.push(bind_cmd(
+            Background::Yes,
             None,
             &cfg.key,
             &format!(
@@ -69,32 +70,51 @@ pub fn run() -> Result<()> {
         }
         let upper = c.to_ascii_uppercase();
         cmds.push(bind_cmd(
+            Background::No,
             Some("grab"),
             &c.to_string(),
             &send(&format!("hint:{c}:main")),
         ));
         cmds.push(bind_cmd(
+            Background::No,
             Some("grab"),
             &upper.to_string(),
             &send(&format!("hint:{c}:shift")),
         ));
         cmds.push(bind_cmd(
+            Background::No,
             Some("grab"),
             &format!("C-{c}"),
             &send(&format!("hint:{c}:ctrl")),
         ));
         cmds.push(bind_cmd(
+            Background::No,
             Some("grab"),
             &format!("M-{c}"),
             &send(&format!("hint:{c}:alt")),
         ));
     }
     for k in EXIT_KEYS {
-        cmds.push(bind_cmd(Some("grab"), k, &send("exit")));
+        cmds.push(bind_cmd(Background::No, Some("grab"), k, &send("exit")));
     }
-    cmds.push(bind_cmd(Some("grab"), "Tab", &send("toggle-multi")));
-    cmds.push(bind_cmd(Some("grab"), "BSpace", &send("backspace")));
-    cmds.push(bind_cmd(Some("grab"), "Enter", &send("noop")));
+    cmds.push(bind_cmd(
+        Background::No,
+        Some("grab"),
+        "Tab",
+        &send("toggle-multi"),
+    ));
+    cmds.push(bind_cmd(
+        Background::No,
+        Some("grab"),
+        "BSpace",
+        &send("backspace"),
+    ));
+    cmds.push(bind_cmd(
+        Background::No,
+        Some("grab"),
+        "Enter",
+        &send("noop"),
+    ));
     cmds.push(vec![
         "bind-key".into(),
         "-T".into(),
@@ -117,7 +137,22 @@ pub fn run() -> Result<()> {
     Ok(())
 }
 
-fn bind_cmd(table: Option<&str>, key: &str, shell: &str) -> Vec<String> {
+/// Whether the bound command runs detached.
+///
+/// Grab mode itself is detached: it lives for as long as the overlay is up, and
+/// blocking the tmux server on it would freeze tmux. Key delivery is the
+/// opposite. A detached `run-shell` per keystroke means one key can overtake
+/// the key before it, so Tab followed quickly by a hint could arrive in the
+/// wrong order. Running delivery in the foreground makes the server finish one
+/// keystroke before it reads the next, which costs nothing because the command
+/// only writes a line to a socket.
+#[derive(Clone, Copy)]
+enum Background {
+    Yes,
+    No,
+}
+
+fn bind_cmd(background: Background, table: Option<&str>, key: &str, shell: &str) -> Vec<String> {
     let mut v = vec!["bind-key".to_string()];
     if let Some(t) = table {
         v.push("-T".into());
@@ -125,7 +160,9 @@ fn bind_cmd(table: Option<&str>, key: &str, shell: &str) -> Vec<String> {
     }
     v.push(key.into());
     v.push("run-shell".into());
-    v.push("-b".into());
+    if matches!(background, Background::Yes) {
+        v.push("-b".into());
+    }
     v.push(shell.into());
     v
 }

@@ -415,9 +415,11 @@ fn multi_select_joins_with_spaces() {
     s.enter_grab_mode();
     s.wait_for(|s| s.screen().contains("two atmp/two.txt"), "hints");
 
-    s.type_keys("\t");
-    s.type_keys("a");
-    // The picked item is restyled, which is how we know the pick registered.
+    // Typed in one go on purpose: key delivery has to keep its order, or the
+    // hint overtakes the Tab that turns multi-select on and grab mode exits
+    // after the first pick.
+    s.type_keys("\ta");
+    // A picked item is restyled, which is how we know the pick registered.
     s.wait_for(
         |s| {
             s.tmux(&["capture-pane", "-p", "-e", "-t", "t:0.0"])

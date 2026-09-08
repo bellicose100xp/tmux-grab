@@ -1,6 +1,6 @@
 [package]
 name = "tmux-grab"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 description = "Vimium-style hints for tmux: press a key, grab a path, URL, hash or number off the screen"
 license = "MIT"
