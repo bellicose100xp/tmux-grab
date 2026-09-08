@@ -25,19 +25,22 @@ impl Pty {
     fn open() -> Pty {
         let mut master_fd: libc::c_int = -1;
         let mut slave_fd: libc::c_int = -1;
-        let winsize = libc::winsize {
+        let mut winsize = libc::winsize {
             ws_row: ROWS,
             ws_col: COLS,
             ws_xpixel: 0,
             ws_ypixel: 0,
         };
+        // Apple declares the last two parameters as `*mut`, glibc as `*const`.
+        // A `*mut` argument coerces to `*const`, so mutable pointers build on
+        // both.
         let rc = unsafe {
             libc::openpty(
                 &mut master_fd,
                 &mut slave_fd,
                 std::ptr::null_mut(),
-                std::ptr::null(),
-                &winsize,
+                std::ptr::null_mut(),
+                &mut winsize as *mut libc::winsize,
             )
         };
         assert_eq!(rc, 0, "openpty failed: {}", std::io::Error::last_os_error());
