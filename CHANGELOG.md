@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-09-08
+
+### Changed
+
+- Default styles now set both foreground and background from the fixed 256-colour cube (yellow hint, blue highlight, green for picked items), so they read the same on light and dark terminals. The old defaults used named colours with no background, which faded on light themes and shifted with each palette.
+
 ## [0.1.1] - 2026-09-08
 
 ### Fixed
@@ -28,6 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Install wizard shown on first run and after upgrades. It downloads a prebuilt binary or builds from source with cargo.
 - Prebuilt binaries for Linux (x86_64, aarch64, static musl) and macOS (x86_64, arm64) attached to each GitHub release.
 
-[Unreleased]: https://github.com/bellicose100xp/tmux-grab/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/bellicose100xp/tmux-grab/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/bellicose100xp/tmux-grab/releases/tag/v0.1.2
 [0.1.1]: https://github.com/bellicose100xp/tmux-grab/releases/tag/v0.1.1
 [0.1.0]: https://github.com/bellicose100xp/tmux-grab/releases/tag/v0.1.0

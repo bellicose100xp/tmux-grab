@@ -423,7 +423,7 @@ fn multi_select_joins_with_spaces() {
     s.wait_for(
         |s| {
             s.tmux(&["capture-pane", "-p", "-e", "-t", "t:0.0"])
-                .contains("\u{1b}[34m")
+                .contains("\u{1b}[48;5;28m")
         },
         "first pick highlighted",
     );
@@ -431,7 +431,7 @@ fn multi_select_joins_with_spaces() {
     s.wait_for(
         |s| {
             let painted = s.tmux(&["capture-pane", "-p", "-e", "-t", "t:0.0"]);
-            painted.matches("\u{1b}[34m").count() >= 2
+            painted.matches("\u{1b}[48;5;28m").count() >= 2
         },
         "second pick highlighted",
     );

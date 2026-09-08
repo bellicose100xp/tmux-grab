@@ -66,10 +66,10 @@ Set options with `set -g` in your tmux config and reload it afterwards.
 | `@grab-ctrl-action` | `:open:` | Action for Ctrl + hint |
 | `@grab-shift-action` | `:paste:` | Action for Shift + hint |
 | `@grab-alt-action` | (empty) | Action for Alt + hint |
-| `@grab-hint-style` | `fg=green,bold` | Style of the hint letters |
-| `@grab-highlight-style` | `fg=yellow` | Style of the matched text |
-| `@grab-selected-hint-style` | `fg=blue,bold` | Hint style for items already picked in multi-select |
-| `@grab-selected-highlight-style` | `fg=blue` | Highlight style for items already picked in multi-select |
+| `@grab-hint-style` | `bg=colour220,fg=colour16,bold` | Style of the hint letters |
+| `@grab-highlight-style` | `bg=colour25,fg=colour231` | Style of the matched text |
+| `@grab-selected-hint-style` | `bg=colour28,fg=colour231,bold` | Hint style for items already picked in multi-select |
+| `@grab-selected-highlight-style` | `bg=colour22,fg=colour231` | Highlight style for items already picked in multi-select |
 | `@grab-backdrop-style` | (empty) | Style applied to everything that is not a match |
 | `@grab-hint-position` | `left` | `left` or `right`: which end of the match the hint covers |
 | `@grab-use-system-clipboard` | `1` | Also copy to the system clipboard |
@@ -105,6 +105,8 @@ set -g @grab-enabled-builtin-patterns 'url,path,sha'
 ### Styles
 
 Styles use tmux syntax: comma separated `fg=` and `bg=` colours plus attributes.
+
+The defaults set both foreground and background from the fixed 256-colour cube, so they look the same on light and dark terminals. If you override them, keep both `fg=` and `bg=` set: a style with only one of them inherits the other from the terminal and can disappear against a theme's background.
 
 - Colours: `black`, `red`, `green`, `yellow`, `blue`, `magenta`, `cyan`, `white`, their `bright*` variants, `colour0` to `colour255`, `#rrggbb`, and `default`.
 - Attributes: `bold`, `dim`, `underscore`, `italics`, `reverse`, and the `no` prefixed forms such as `nobold`.

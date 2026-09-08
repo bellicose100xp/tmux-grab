@@ -14,6 +14,16 @@ pub const OPTION_PREFIX: &str = "@grab-";
 /// from another key (C-i = Tab, C-m = Enter) or because they exit grab mode.
 pub const RESERVED_KEYS: &[char] = &['c', 'i', 'm', 'q'];
 
+/// Default styles. Every one sets both foreground and background from the
+/// fixed 256-colour cube, so they read the same on light and dark terminals
+/// and do not depend on how a theme remaps the sixteen named colours.
+/// Contrast ratios: hint 14:1, highlight 7:1, selected hint 5:1, selected
+/// highlight 8:1.
+pub const DEFAULT_HINT_STYLE: &str = "bg=colour220,fg=colour16,bold";
+pub const DEFAULT_HIGHLIGHT_STYLE: &str = "bg=colour25,fg=colour231";
+pub const DEFAULT_SELECTED_HINT_STYLE: &str = "bg=colour28,fg=colour231,bold";
+pub const DEFAULT_SELECTED_HIGHLIGHT_STYLE: &str = "bg=colour22,fg=colour231";
+
 pub const BUILTIN_PATTERNS: &[(&str, &str)] = &[
     ("ip", r"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}"),
     (
@@ -100,10 +110,11 @@ impl Default for Config {
             show_copied_notification: false,
             enable_bindings: true,
             styles: Styles {
-                hint: crate::style::to_ansi("fg=green,bold").unwrap(),
-                highlight: crate::style::to_ansi("fg=yellow").unwrap(),
-                selected_hint: crate::style::to_ansi("fg=blue,bold").unwrap(),
-                selected_highlight: crate::style::to_ansi("fg=blue").unwrap(),
+                hint: crate::style::to_ansi(DEFAULT_HINT_STYLE).unwrap(),
+                highlight: crate::style::to_ansi(DEFAULT_HIGHLIGHT_STYLE).unwrap(),
+                selected_hint: crate::style::to_ansi(DEFAULT_SELECTED_HINT_STYLE).unwrap(),
+                selected_highlight: crate::style::to_ansi(DEFAULT_SELECTED_HIGHLIGHT_STYLE)
+                    .unwrap(),
                 backdrop: String::new(),
                 hint_on_right: false,
             },
