@@ -15,6 +15,11 @@ clap = { version = "4.5", features = ["derive"] }
 regex = "1"
 unicode-width = "0.2"
 
+[dev-dependencies]
+# Integration tests open a pty so the tmux client sees a real terminal and
+# key bindings are exercised the way a user typing would exercise them.
+libc = "0.2"
+
 [profile.release]
 opt-level = 3
 lto = true
