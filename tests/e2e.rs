@@ -550,3 +550,34 @@ fn nothing_to_grab_exits_cleanly() {
     assert!(s.key_table().is_empty(), "must not enter grab mode");
     assert!(s.buffer().is_empty());
 }
+
+/// tmux renders a tab as columns on screen. Hints must line up with those
+/// columns, and the copied text must be the path without the indentation.
+#[test]
+fn tab_indented_line_keeps_columns() {
+    let Some(mut s) = Server::start("tabs") else {
+        return;
+    };
+    s.shell("clear; printf '\\tmodified:   src/main.rs\\n'");
+    s.wait_for(
+        |s| s.screen().contains("modified:   src/main.rs"),
+        "shell output",
+    );
+    s.enter_grab_mode();
+    s.wait_for(
+        |s| s.screen().contains("modified:   arc/main.rs"),
+        "hint on the captured path",
+    );
+    let screen = s.screen();
+    let line = screen
+        .lines()
+        .find(|l| l.contains("modified:"))
+        .expect("the git status line");
+    assert!(
+        line.starts_with("        modified:"),
+        "the tab must still occupy eight columns: {line:?}"
+    );
+    s.type_keys("a");
+    s.wait_for(|s| s.buffer() == "src/main.rs", "copied path only");
+    s.wait_restored();
+}

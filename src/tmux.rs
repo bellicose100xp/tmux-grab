@@ -8,7 +8,14 @@ use std::process::{Command, Stdio};
 
 use anyhow::{Context, Result, bail};
 
-const SEP: char = '\u{1f}';
+/// Field delimiter for `display-message -F` output.
+///
+/// It has to be printable: some tmux versions render non-printable characters
+/// in printed command output as octal escapes, so a control character comes
+/// back as the four characters `\037` and the output cannot be split on it.
+/// Free-form values such as paths are fetched with their own call instead of
+/// being packed into a delimited line.
+const SEP: &str = "@@tmux-grab@@";
 
 #[derive(Debug, Clone)]
 pub struct Tmux {
@@ -113,7 +120,7 @@ impl Tmux {
         Ok(v.trim().trim_start_matches("tmux ").to_string())
     }
 
-    /// Everything about the target pane plus the calling client in one call.
+    /// Everything about the target pane plus the calling client.
     pub fn pane_info(&self, target: &str) -> Result<PaneInfo> {
         let fields = [
             "#{pane_id}",
@@ -121,7 +128,6 @@ impl Tmux {
             "#{session_id}",
             "#{pane_width}",
             "#{pane_height}",
-            "#{pane_current_path}",
             "#{pane_in_mode}",
             "#{scroll_position}",
             "#{window_zoomed_flag}",
@@ -129,14 +135,17 @@ impl Tmux {
             "#{client_name}",
             "#{prefix}",
             "#{prefix2}",
-            "#{socket_path}",
         ];
-        let fmt = fields.join(&SEP.to_string());
+        let fmt = fields.join(SEP);
         let out = self.run(["display-message", "-p", "-t", target, "-F", &fmt])?;
         let out = out.trim_end_matches('\n');
         let parts: Vec<&str> = out.split(SEP).collect();
         if parts.len() != fields.len() {
-            bail!("unexpected display-message output for pane {target}: {out:?}");
+            bail!(
+                "display-message for pane {target} gave {} fields, expected {}: {out:?}",
+                parts.len(),
+                fields.len()
+            );
         }
         Ok(PaneInfo {
             pane_id: parts[0].to_string(),
@@ -144,16 +153,24 @@ impl Tmux {
             session_id: parts[2].to_string(),
             width: parts[3].parse().context("pane_width")?,
             height: parts[4].parse().context("pane_height")?,
-            current_path: parts[5].to_string(),
-            in_mode: parts[6] == "1",
-            scroll_position: parts[7].parse().ok(),
-            zoomed: parts[8] == "1",
-            active: parts[9] == "1",
-            client: parts[10].to_string(),
-            prefix: parts[11].to_string(),
-            prefix2: parts[12].to_string(),
-            socket_path: parts[13].to_string(),
+            in_mode: parts[5] == "1",
+            scroll_position: parts[6].parse().ok(),
+            zoomed: parts[7] == "1",
+            active: parts[8] == "1",
+            client: parts[9].to_string(),
+            prefix: parts[10].to_string(),
+            prefix2: parts[11].to_string(),
+            current_path: self.pane_field(target, "#{pane_current_path}")?,
+            socket_path: self.socket_path()?,
         })
+    }
+
+    /// One format field on its own, for values that can contain anything.
+    fn pane_field(&self, target: &str, format: &str) -> Result<String> {
+        Ok(self
+            .run(["display-message", "-p", "-t", target, "-F", format])?
+            .trim_end_matches('\n')
+            .to_string())
     }
 
     pub fn socket_path(&self) -> Result<String> {
@@ -189,7 +206,7 @@ impl Tmux {
 
     /// Create a detached window running `cat` to draw into, sized like the pane.
     pub fn create_hidden_window(&self, pane: &PaneInfo, name: &str) -> Result<HiddenWindow> {
-        let fmt = format!("#{{window_id}}{SEP}#{{pane_id}}{SEP}#{{pane_tty}}");
+        let fmt = format!("#{{window_id}}{SEP}#{{pane_id}}");
         let target = format!("{}:", pane.session_id);
         let out = self.run([
             "new-window",
@@ -205,13 +222,16 @@ impl Tmux {
         ])?;
         let out = out.trim();
         let parts: Vec<&str> = out.split(SEP).collect();
-        if parts.len() != 3 {
+        if parts.len() != 2 {
             bail!("unexpected new-window output: {out:?}");
         }
+        let window_id = parts[0].to_string();
+        let pane_id = parts[1].to_string();
+        let tty = self.pane_field(&pane_id, "#{pane_tty}")?;
         let win = HiddenWindow {
-            window_id: parts[0].to_string(),
-            pane_id: parts[1].to_string(),
-            tty: parts[2].to_string(),
+            window_id,
+            pane_id,
+            tty,
         };
         self.run([
             "resize-window",
